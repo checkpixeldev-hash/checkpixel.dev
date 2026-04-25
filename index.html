@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CheckPixel — Dead Pixel Test, Fullscreen Color Tool & Focus Timer</title>
+<meta name="description" content="Free dead pixel test and fullscreen color tool. Clean your monitor, improve Zoom lighting, and stay focused with a Pomodoro timer. No ads, no login. checkpixel.dev">
+<meta name="theme-color" content="#f7f7f5">
+<link rel="canonical" href="https://checkpixel.dev/">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111111'/%3E%3Cpath d='M21 6 A10 10 0 1 0 21 26 L21 21 A5 5 0 1 1 21 11 Z' fill='%23ffffff'/%3E%3Crect x='16' y='14' width='5' height='5' rx='1.5' fill='%23ff3b3b'/%3E%3C/svg%3E">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="CheckPixel — Dead Pixel Test & Fullscreen Color Tool">
+<meta property="og:description" content="Free dead pixel test and fullscreen color tool. Clean your monitor, improve Zoom lighting, and stay focused. No ads, no login.">
+<meta property="og:url" content="https://checkpixel.dev/">
+<meta property="og:image" content="https://checkpixel.dev/og.png">
+<meta property="og:site_name" content="CheckPixel">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CheckPixel — Dead Pixel Test & Fullscreen Color Tool">
+<meta name="twitter:description" content="Free dead pixel test and fullscreen color tool.">
+<meta name="twitter:image" content="https://checkpixel.dev/og.png">
+
+<!-- Structured data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "CheckPixel",
+  "description": "Free dead pixel test and fullscreen color tool with a built-in Pomodoro focus timer.",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Web",
+  "url": "https://checkpixel.dev/",
+  "browserRequirements": "Requires JavaScript. Requires HTML5.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "publisher": {
+    "@type": "Organization",
+    "name": "CheckPixel",
+    "email": "checkpixeldev@gmail.com"
+  }
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: #e8e5df;
+    --border-strong: #d0cdc6;
+    --text: #111111;
+    --muted: #6a6a6a;
+    --muted-strong: #3a3a3a;
+    --accent: #111111;
+    --on-accent: #f7f7f5;
+    --danger: #c93737;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* ── FULLSCREEN OVERLAY ── */
+  #screen-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #ffffff;
+    z-index: 9999;
+    transition: background 0.3s ease;
+  }
+  #screen-overlay.active { display: flex; align-items: center; justify-content: center; }
+  #overlay-hint {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.18);
+    color: rgba(0,0,0,0.55);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    padding: 8px 18px;
+    border-radius: 20px;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 1s ease;
+    mix-blend-mode: multiply;
+    text-align: center;
+  }
+  #overlay-hint.hidden { opacity: 0; }
+  #pixel-bar {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0;
+    height: 3px;
+    background: rgba(0,0,0,0.25);
+    z-index: 10001;
+    transition: width 0.1s linear;
+    mix-blend-mode: multiply;
+  }
+  #overlay-controls {
+    position: fixed;
+    top: 20px; right: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 10002;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #screen-overlay:hover #overlay-controls,
+  #screen-overlay:focus-within #overlay-controls { opacity: 1; }
+  .ov-btn {
+    background: rgba(0,0,0,0.15);
+    border: none;
+    border-radius: 8px;
+    color: rgba(0,0,0,0.65);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 7px 14px;
+    cursor: pointer;
+    mix-blend-mode: multiply;
+    transition: background 0.2s;
+  }
+  .ov-btn:hover, .ov-btn:focus-visible { background: rgba(0,0,0,0.28); }
+
+  /* ── LAYOUT ── */
+  header {
+    padding: 28px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .logo svg { display: block; height: 36px; width: auto; }
+  .logo span { color: var(--muted); font-style: normal; font-size: 13px; letter-spacing: 0.05em; font-family: 'DM Mono', monospace; }
+  nav { display: flex; gap: 6px; }
+  nav a {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--muted-strong);
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+  }
+  nav a:hover { color: var(--text); border-color: var(--border); }
+  main { max-width: 960px; margin: 0 auto; padding: 56px 40px 80px; }
+  h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(36px, 5vw, 58px);
+    font-weight: 400;
+    line-height: 1.1;
+    color: var(--accent);
+    margin-bottom: 14px;
+    letter-spacing: -0.02em;
+  }
+  h1 em { font-style: italic; color: var(--muted-strong); }
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted-strong);
+    letter-spacing: 0.04em;
+    margin-bottom: 52px;
+    line-height: 1.7;
+    max-width: 480px;
+  }
+
+  /* ── CARDS ── */
+  .tools-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .tool-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  }
+  .tool-card:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+  .tool-card.full-width { grid-column: 1 / -1; }
+  .card-label { font-size: 10px; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; margin-bottom: 16px; }
+  .card-title { font-family: 'Instrument Serif', serif; font-size: 22px; color: var(--accent); margin-bottom: 10px; font-weight: 400; }
+  .card-desc { font-size: 12px; color: var(--muted-strong); line-height: 1.7; margin-bottom: 24px; letter-spacing: 0.02em; }
+
+  /* ── COLOR SWATCHES ── */
+  .color-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .swatch {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    position: relative; padding: 0; font-size: 0;
+  }
+  .swatch:hover { transform: scale(1.12); }
+  .swatch.selected { border-color: var(--accent); }
+  .custom-color-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+  .custom-color-row label { font-size: 11px; letter-spacing: 0.08em; color: var(--muted-strong); }
+  #custom-color-input { width: 40px; height: 32px; border: 1px solid var(--border); border-radius: 7px; background: none; cursor: pointer; padding: 2px; }
+  #custom-hex { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; padding: 6px 10px; width: 100px; letter-spacing: 0.05em; }
+  #custom-hex:focus { outline: none; border-color: var(--muted-strong); }
+  #custom-hex.invalid { border-color: var(--danger); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent); color: var(--on-accent);
+    border: none; border-radius: 9px;
+    font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.06em;
+    padding: 11px 20px; cursor: pointer; transition: opacity 0.15s, transform 0.1s; font-weight: 500;
+  }
+  .btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn.secondary:hover { border-color: var(--border-strong); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ── PIXEL TEST ── */
+  .pixel-sequence { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .seq-color { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .seq-color.active::after {
+    content: ''; position: absolute; inset: 0;
+    border: 2px solid white; border-radius: 5px;
+    animation: pulse-border 0.6s ease-in-out infinite;
+  }
+  @keyframes pulse-border { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .pixel-info { font-size: 11px; color: var(--muted-strong); line-height: 1.7; margin-bottom: 18px; letter-spacing: 0.03em; }
+
+  /* ── POMODORO ── */
+  .pomodoro-display { font-family: 'Instrument Serif', serif; font-size: 52px; color: var(--accent); letter-spacing: -0.02em; margin-bottom: 8px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .pomodoro-label { font-size: 11px; color: var(--muted-strong); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 20px; }
+  .pomodoro-controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .pomo-presets { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .preset-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; color: var(--muted-strong); font-family: 'DM Mono', monospace; font-size: 11px; padding: 6px 12px; cursor: pointer; transition: all 0.15s; letter-spacing: 0.05em; }
+  .preset-btn:hover { color: var(--text); border-color: var(--border-strong); }
+  .preset-btn.active { color: var(--on-accent); border-color: var(--accent); background: var(--accent); }
+  .pomo-ring-wrap { display: flex; align-items: center; gap: 28px; margin-bottom: 24px; flex-wrap: wrap; }
+  .pomo-ring { position: relative; width: 90px; height: 90px; flex-shrink: 0; }
+  .pomo-ring svg { transform: rotate(-90deg); }
+  .pomo-ring-bg { fill: none; stroke: var(--border); stroke-width: 4; }
+  .pomo-ring-fill { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+
+  /* ── SHORTCUTS ── */
+  .shortcuts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .shortcut-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .shortcut-row:last-child, .shortcut-row:nth-last-child(2) { border-bottom: none; }
+  kbd { background: #f0ede6; border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; padding: 3px 8px; white-space: nowrap; box-shadow: inset 0 -1px 0 var(--border); }
+  .shortcut-desc { font-size: 11px; color: var(--muted-strong); letter-spacing: 0.04em; }
+
+  /* ── BUY ME A COFFEE ── */
+  .bmc-btn { display: inline-flex; align-items: center; gap: 10px; background: #FFDD00; color: #1a1a1a; border: none; border-radius: 10px; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; letter-spacing: 0.04em; padding: 13px 22px; cursor: pointer; text-decoration: none; white-space: nowrap; transition: opacity 0.15s, transform 0.1s; flex-shrink: 0; }
+  .bmc-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+  /* ── FOOTER ── */
+  footer { border-top: 1px solid var(--border); padding: 28px 40px; display: flex; align-items: center; justify-content: space-between; }
+  footer span, footer a { font-size: 11px; color: var(--muted-strong); letter-spacing: 0.06em; }
+  footer a { text-decoration: none; transition: color 0.15s; }
+  footer a:hover { color: var(--text); text-decoration: underline; }
+
+  /* ── NOTIFICATION ── */
+  #notif { position: fixed; bottom: 28px; right: 28px; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 12px 18px; font-size: 12px; color: #e8e8e8; letter-spacing: 0.04em; transform: translateY(10px); opacity: 0; transition: all 0.25s ease; z-index: 9998; pointer-events: none; max-width: 80vw; }
+  #notif.show { transform: translateY(0); opacity: 1; }
+
+  .skip-link { position: absolute; left: -9999px; top: 0; background: var(--accent); color: var(--bg); padding: 8px 14px; z-index: 20000; font-size: 12px; border-radius: 0 0 8px 0; }
+  .skip-link:focus { left: 0; }
+
+  @media (max-width: 640px) {
+    header { padding: 20px; flex-direction: column; gap: 16px; }
+    main { padding: 36px 20px 60px; }
+    .tools-grid { grid-template-columns: 1fr; }
+    .tool-card.full-width { grid-column: 1; }
+    .shortcuts-grid { grid-template-columns: 1fr; }
+    footer { flex-direction: column; gap: 10px; padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">Skip to content</a>
+
+<div id="screen-overlay" role="dialog" aria-modal="true" aria-label="Fullscreen color screen" tabindex="-1">
+  <div id="overlay-controls">
+    <button class="ov-btn" type="button" onclick="exitScreen()">ESC — exit</button>
+    <button class="ov-btn" type="button" id="pixel-test-btn" onclick="toggleSequence()">pixel test</button>
+  </div>
+  <div id="overlay-hint">click to exit · ESC · space for next color</div>
+  <div id="pixel-bar"></div>
+</div>
+
+<div id="notif" role="status" aria-live="polite"></div>
+
+<header>
+  <div class="logo">
+    <svg role="img" aria-label="CheckPixel" width="200" height="60" viewBox="0 0 200 60">
+      <path d="M42 4 A26 26 0 1 0 42 56 L42 46 A16 16 0 1 1 42 14 Z" fill="currentColor"/>
+      <rect x="34" y="24" width="10" height="10" rx="2.5" fill="#ff3b3b"/>
+      <text x="72" y="38" font-family="'Instrument Serif', Georgia, 'Times New Roman', serif" font-style="italic" font-size="26" fill="currentColor" letter-spacing="-0.5">CheckPixel</text>
+    </svg>
+    <span>v1.1</span>
+  </div>
+  <nav aria-label="Primary">
+    <a href="#colors">colors</a>
+    <a href="#pixels">pixels</a>
+    <a href="#focus">focus</a>
+    <a href="#shortcuts">shortcuts</a>
+  </nav>
+</header>
+
+<main id="main">
+  <h1>Fullscreen.<br><em>No distractions.</em></h1>
+  <p class="subtitle">Clean your monitor, test for dead pixels, improve your Zoom lighting, and stay focused. All in your browser — no install, no login, no ads.</p>
+
+  <div class="tools-grid">
+
+    <section class="tool-card" id="colors" aria-labelledby="colors-title">
+      <div class="card-label">01 — Color screen</div>
+      <h2 class="card-title" id="colors-title">Pick a color</h2>
+      <p class="card-desc">Use it to clean your monitor, as Zoom lighting, or as a neutral background for photography. Pure colors — the same RGB values that reveal subpixel issues.</p>
+      <div class="color-grid" id="swatch-grid" role="radiogroup" aria-label="Preset colors"></div>
+      <div class="custom-color-row">
+        <label for="custom-hex">Custom</label>
+        <input type="color" id="custom-color-input" value="#ffffff" aria-label="Pick a custom color">
+        <input type="text" id="custom-hex" value="#ffffff" maxlength="7" spellcheck="false" aria-label="Hex color value" pattern="^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$">
+      </div>
+      <div class="btn-row">
+        <button class="btn" type="button" onclick="openScreen()">▶ Open fullscreen</button>
+      </div>
+    </section>
+
+    <section class="tool-card" id="pixels" aria-labelledby="pixels-title">
+      <div class="card-label">02 — Pixel test</div>
+      <h2 class="card-title" id="pixels-title">Dead pixel detector</h2>
+      <p class="card-desc">Automatically cycles through 7 critical colors every 3 seconds. Dead pixels show up as dots that don't change color with the background.</p>
+      <div class="pixel-sequence" id="pixel-seq" aria-hidden="true"></div>
+      <p class="pixel-info">Look for dots that stay the same color regardless of the background. Dim your room lights for better visibility.</p>
+      <div class="btn-row">
+        <button class="btn" type="button" onclick="openPixelTest()">▶ Start sequence</button>
+        <button class="btn secondary" type="button" onclick="openScreen()">Single color</button>
+      </div>
+    </section>
+
+    <section class="tool-card" id="focus" aria-labelledby="focus-title">
+      <div class="card-label">03 — Focus timer</div>
+      <h2 class="card-title" id="focus-title">Pomodoro</h2>
+      <div class="pomo-ring-wrap">
+        <div class="pomo-ring" aria-hidden="true">
+          <svg width="90" height="90" viewBox="0 0 90 90">
+            <circle class="pomo-ring-bg" cx="45" cy="45" r="38"/>
+            <circle class="pomo-ring-fill" id="ring-fill" cx="45" cy="45" r="38" stroke-dashoffset="0"/>
+          </svg>
+        </div>
+        <div>
+          <div class="pomodoro-display" id="pomo-display" aria-live="off">25:00</div>
+          <div class="pomodoro-label" id="pomo-status" aria-live="polite">ready</div>
+        </div>
+      </div>
+      <div class="pomo-presets" role="group" aria-label="Timer presets">
+        <button class="preset-btn active" type="button" onclick="setPreset(25, this)" data-minutes="25">25 min</button>
+        <button class="preset-btn" type="button" onclick="setPreset(50, this)" data-minutes="50">50 min</button>
+        <button class="preset-btn" type="button" onclick="setPreset(5, this)" data-minutes="5">5 min (break)</button>
+        <button class="preset-btn" type="button" onclick="setPreset(15, this)" data-minutes="15">15 min (break)</button>
+      </div>
+      <div class="pomodoro-controls">
+        <button class="btn" type="button" id="pomo-start" onclick="togglePomodoro()">▶ Start</button>
+        <button class="btn secondary" type="button" onclick="resetPomodoro()">↺ Reset</button>
+      </div>
+    </section>
+
+    <section class="tool-card" id="shortcuts" aria-labelledby="shortcuts-title">
+      <div class="card-label">04 — Shortcuts</div>
+      <h2 class="card-title" id="shortcuts-title">Keyboard</h2>
+      <p class="card-desc">While in fullscreen:</p>
+      <div class="shortcuts-grid">
+        <div class="shortcut-row"><kbd>ESC</kbd><span class="shortcut-desc">Exit</span></div>
+        <div class="shortcut-row"><kbd>Space</kbd><span class="shortcut-desc">Next color</span></div>
+        <div class="shortcut-row"><kbd>W</kbd><span class="shortcut-desc">White</span></div>
+        <div class="shortcut-row"><kbd>B</kbd><span class="shortcut-desc">Black</span></div>
+        <div class="shortcut-row"><kbd>R</kbd><span class="shortcut-desc">Red</span></div>
+        <div class="shortcut-row"><kbd>G</kbd><span class="shortcut-desc">Green</span></div>
+        <div class="shortcut-row"><kbd>U</kbd><span class="shortcut-desc">Blue</span></div>
+        <div class="shortcut-row"><kbd>Y</kbd><span class="shortcut-desc">Yellow</span></div>
+        <div class="shortcut-row"><kbd>C</kbd><span class="shortcut-desc">Cyan</span></div>
+        <div class="shortcut-row"><kbd>M</kbd><span class="shortcut-desc">Magenta</span></div>
+        <div class="shortcut-row"><kbd>P</kbd><span class="shortcut-desc">Pixel test</span></div>
+      </div>
+    </section>
+
+    <section class="tool-card full-width" id="support" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px;">
+      <div>
+        <div class="card-label">05 — Support</div>
+        <h2 class="card-title">Keep it free</h2>
+        <p class="card-desc" style="margin-bottom:0;">CheckPixel is free, ad-free, and always will be. If it saved you time or helped you spot a dead pixel, a coffee goes a long way.</p>
+      </div>
+      <a href="https://www.buymeacoffee.com/checkpixel" target="_blank" rel="noopener" class="bmc-btn" aria-label="Buy me a coffee">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="flex-shrink:0"><path d="M20 9H4L5.5 19.5C5.5 20.3 6.2 21 7 21H17C17.8 21 18.5 20.3 18.5 19.5L20 9Z" fill="#FFDD00" stroke="#1a1a1a" stroke-width="1.5"/><path d="M4 9C4 9 3 8 3 6.5C3 5 4 4 5.5 4H18.5C20 4 21 5 21 6.5C21 8 20 9 20 9" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/><path d="M20 9H22C22 9 23 9.5 23 11C23 12.5 22 13 22 13H19.5" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Buy me a coffee
+      </a>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <span>CheckPixel — free, no ads, no login</span>
+  <a href="mailto:checkpixeldev@gmail.com?subject=CheckPixel%20feedback" rel="noopener">checkpixeldev@gmail.com</a>
+  <span>pure HTML · host it free on GitHub Pages</span>
+</footer>
+
+<script>
+const PRESETS = [
+  { name: 'White',   hex: '#ffffff' },
+  { name: 'Black',   hex: '#000000' },
+  { name: 'Gray',    hex: '#808080' },
+  { name: 'Red',     hex: '#ff0000' },
+  { name: 'Green',   hex: '#00ff00' },
+  { name: 'Blue',    hex: '#0000ff' },
+  { name: 'Yellow',  hex: '#ffff00' },
+  { name: 'Cyan',    hex: '#00ffff' },
+  { name: 'Magenta', hex: '#ff00ff' },
+  { name: 'Orange',  hex: '#ff8000' },
+];
+const PIXEL_SEQ = ['#ffffff','#000000','#ff0000','#00ff00','#0000ff','#ffff00','#00ffff'];
+const PIXEL_STEP_MS = 3000;
+const KEY_MAP = { w:'#ffffff',b:'#000000',r:'#ff0000',g:'#00ff00',u:'#0000ff',y:'#ffff00',c:'#00ffff',m:'#ff00ff' };
+const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+const STORAGE_KEY = 'checkpixel.v1';
+
+let currentColor = '#ffffff', selectedSwatch = null;
+let pixelTestActive = false, pixelIndex = 0, pixelInterval = null;
+let cycleIdx = 0, lastFocusedTrigger = null;
+
+const store = {
+  get(key, fallback) { try { const r = localStorage.getItem(STORAGE_KEY); return r ? (JSON.parse(r)[key] ?? fallback) : fallback; } catch { return fallback; } },
+  set(key, value) { try { const r = localStorage.getItem(STORAGE_KEY); const o = r ? JSON.parse(r) : {}; o[key]=value; localStorage.setItem(STORAGE_KEY, JSON.stringify(o)); } catch {} }
+};
+
+const grid = document.getElementById('swatch-grid');
+PRESETS.forEach(p => {
+  const el = document.createElement('button');
+  el.type='button'; el.className='swatch'; el.style.background=p.hex; el.title=p.name;
+  el.setAttribute('aria-label',p.name); el.setAttribute('role','radio'); el.setAttribute('aria-checked','false');
+  if (p.hex==='#ffffff') el.style.border='2px solid var(--border-strong)';
+  el.addEventListener('click', () => selectColor(p.hex, el));
+  grid.appendChild(el);
+});
+
+const seqEl = document.getElementById('pixel-seq');
+PIXEL_SEQ.forEach(c => {
+  const el = document.createElement('div');
+  el.className='seq-color'; el.style.background=c;
+  if (c==='#ffffff') el.style.border='1px solid var(--border-strong)';
+  seqEl.appendChild(el);
+});
+
+const RING_RADIUS = 38, CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+const ringFill = document.getElementById('ring-fill');
+ringFill.setAttribute('stroke-dasharray', CIRCUMFERENCE.toFixed(3));
+ringFill.setAttribute('stroke-dashoffset', '0');
+
+document.getElementById('overlay-hint').textContent = IS_TOUCH ? 'tap to exit' : 'click to exit · ESC · space for next color';
+
+function selectColor(hex, el) {
+  currentColor = hex;
+  if (selectedSwatch) { selectedSwatch.classList.remove('selected'); selectedSwatch.setAttribute('aria-checked','false'); }
+  if (el) { el.classList.add('selected'); el.setAttribute('aria-checked','true'); selectedSwatch = el; }
+  document.getElementById('custom-color-input').value = hex;
+  document.getElementById('custom-hex').value = hex;
+  document.getElementById('custom-hex').classList.remove('invalid');
+  store.set('color', hex);
+}
+
+function expandHex(val) {
+  if (!val) return null;
+  val = val.trim();
+  if (!val.startsWith('#')) val = '#' + val;
+  if (/^#[0-9a-fA-F]{3}$/.test(val)) return '#'+val[1]+val[1]+val[2]+val[2]+val[3]+val[3];
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) return val.toLowerCase();
+  return null;
+}
+
+document.getElementById('custom-color-input').addEventListener('input', e => {
+  const hex = e.target.value.toLowerCase(); currentColor = hex;
+  document.getElementById('custom-hex').value = hex;
+  document.getElementById('custom-hex').classList.remove('invalid');
+  if (selectedSwatch) { selectedSwatch.classList.remove('selected'); selectedSwatch.setAttribute('aria-checked','false'); selectedSwatch=null; }
+  store.set('color', hex);
+});
+
+document.getElementById('custom-hex').addEventListener('input', e => {
+  const expanded = expandHex(e.target.value);
+  if (expanded) {
+    currentColor = expanded;
+    document.getElementById('custom-color-input').value = expanded;
+    e.target.classList.remove('invalid');
+    if (selectedSwatch) { selectedSwatch.classList.remove('selected'); selectedSwatch.setAttribute('aria-checked','false'); selectedSwatch=null; }
+    store.set('color', expanded);
+  } else { e.target.classList.add('invalid'); }
+});
+
+function initializeColor() {
+  const saved = store.get('color', null);
+  if (saved) {
+    const match = [...grid.children].find((_, i) => PRESETS[i].hex === saved);
+    if (match) selectColor(saved, match);
+    else { currentColor=saved; document.getElementById('custom-color-input').value=saved; document.getElementById('custom-hex').value=saved; }
+  } else selectColor(PRESETS[0].hex, grid.children[0]);
+}
+initializeColor();
+
+function openScreen() {
+  stopPixelTest(); lastFocusedTrigger = document.activeElement;
+  const overlay = document.getElementById('screen-overlay');
+  overlay.style.background = currentColor; overlay.classList.add('active');
+  document.getElementById('pixel-test-btn').style.display = '';
+  showHint(); overlay.focus(); overlay.requestFullscreen?.().catch(()=>{});
+  cycleIdx = PRESETS.findIndex(p => p.hex===currentColor); if (cycleIdx<0) cycleIdx=0;
+}
+
+function exitScreen() {
+  stopPixelTest(); document.getElementById('screen-overlay').classList.remove('active');
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(()=>{});
+  if (lastFocusedTrigger?.focus) lastFocusedTrigger.focus();
+}
+
+function showHint() {
+  const hint = document.getElementById('overlay-hint');
+  hint.classList.remove('hidden'); setTimeout(()=>hint.classList.add('hidden'), 3000);
+}
+
+function openPixelTest() {
+  openScreen();
+  const overlay = document.getElementById('screen-overlay');
+  let started = false;
+  const start = () => { if (started) return; started=true; overlay.removeEventListener('transitionend',start); startPixelTest(); };
+  overlay.addEventListener('transitionend', start, {once:true}); setTimeout(start, 500);
+}
+
+function toggleSequence() { if (pixelTestActive) stopPixelTest(); else startPixelTest(); }
+
+function startPixelTest() {
+  if (pixelTestActive) return; pixelTestActive=true; pixelIndex=0;
+  const btn = document.getElementById('pixel-test-btn'); if (btn) btn.textContent='■ stop test';
+  document.getElementById('pixel-bar').style.display='block'; runPixelStep();
+}
+
+function runPixelStep() {
+  if (!pixelTestActive) return;
+  const overlay = document.getElementById('screen-overlay');
+  const color = PIXEL_SEQ[pixelIndex]; overlay.style.background = color;
+  document.querySelectorAll('.seq-color').forEach((el,i)=>el.classList.toggle('active',i===pixelIndex));
+  const bar = document.getElementById('pixel-bar');
+  bar.style.width = ((pixelIndex+1)/PIXEL_SEQ.length*100)+'%';
+  bar.style.background = color==='#000000'?'rgba(255,255,255,0.3)':'rgba(0,0,0,0.25)';
+  pixelIndex = (pixelIndex+1) % PIXEL_SEQ.length;
+  if (pixelIndex===0) { pixelInterval=setTimeout(()=>{stopPixelTest();notify('Test complete! Start again to repeat.');},PIXEL_STEP_MS); return; }
+  pixelInterval = setTimeout(runPixelStep, PIXEL_STEP_MS);
+}
+
+function stopPixelTest() {
+  pixelTestActive=false; clearTimeout(pixelInterval);
+  document.getElementById('pixel-bar').style.display='none';
+  const btn=document.getElementById('pixel-test-btn'); if(btn) btn.textContent='pixel test';
+  document.querySelectorAll('.seq-color').forEach(el=>el.classList.remove('active'));
+}
+
+const colorCycle = PRESETS.map(p=>p.hex);
+document.addEventListener('keydown', e => {
+  const overlay = document.getElementById('screen-overlay');
+  if (!overlay.classList.contains('active')) return;
+  if (e.key==='Escape') { exitScreen(); return; }
+  if (e.key===' ') { e.preventDefault(); stopPixelTest(); cycleIdx=(cycleIdx+1)%colorCycle.length; overlay.style.background=colorCycle[cycleIdx]; return; }
+  if (e.key==='p'||e.key==='P') { if(pixelTestActive)stopPixelTest();else startPixelTest(); return; }
+  const hex=KEY_MAP[e.key.toLowerCase()]; if(hex){stopPixelTest();overlay.style.background=hex;}
+});
+
+document.getElementById('screen-overlay').addEventListener('click',e=>{ if(e.target===document.getElementById('screen-overlay'))exitScreen(); });
+document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement&&document.getElementById('screen-overlay').classList.contains('active'))exitScreen(); });
+
+let pomoTotal=(store.get('pomoMinutes',25))*60, pomoRemaining=pomoTotal;
+let pomoEndAt=0, pomoRunning=false, pomoInterval=null;
+let pomoOriginalTitle=document.title, pomoFlashInterval=null;
+
+function setPreset(min,btn) {
+  resetPomodoro(); pomoTotal=min*60; pomoRemaining=pomoTotal; updatePomoDisplay();
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); store.set('pomoMinutes',min);
+}
+
+(function restorePreset(){
+  const saved=store.get('pomoMinutes',25);
+  const btn=document.querySelector(`.preset-btn[data-minutes="${saved}"]`);
+  if(btn){document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+  pomoTotal=saved*60; pomoRemaining=pomoTotal; updatePomoDisplay();
+})();
+
+function togglePomodoro() {
+  const startBtn=document.getElementById('pomo-start'), status=document.getElementById('pomo-status');
+  if (pomoRunning) {
+    pomoRunning=false; clearInterval(pomoInterval); pomoRemaining=Math.max(0,Math.round((pomoEndAt-Date.now())/1000));
+    startBtn.textContent='▶ Resume'; status.textContent='paused'; stopTitleFlash();
+  } else {
+    pomoRunning=true; pomoEndAt=Date.now()+pomoRemaining*1000;
+    startBtn.textContent='⏸ Pause'; status.textContent='focusing...';
+    pomoInterval=setInterval(tickPomodoro,250); tickPomodoro();
+  }
+}
+
+function tickPomodoro() {
+  const left=Math.max(0,Math.round((pomoEndAt-Date.now())/1000)); pomoRemaining=left; updatePomoDisplay();
+  if(left<=0){clearInterval(pomoInterval);pomoRunning=false;document.getElementById('pomo-start').textContent='▶ Start';document.getElementById('pomo-status').textContent='done ✓';notify('Pomodoro done! Time for a break.');playBeep();startTitleFlash();}
+}
+
+function resetPomodoro() {
+  clearInterval(pomoInterval); pomoRunning=false; pomoRemaining=pomoTotal;
+  document.getElementById('pomo-start').textContent='▶ Start'; document.getElementById('pomo-status').textContent='ready';
+  stopTitleFlash(); updatePomoDisplay();
+}
+
+function updatePomoDisplay() {
+  const m=Math.floor(pomoRemaining/60).toString().padStart(2,'0'), s=(pomoRemaining%60).toString().padStart(2,'0');
+  document.getElementById('pomo-display').textContent=`${m}:${s}`;
+  const offset=CIRCUMFERENCE*(1-(pomoTotal>0?pomoRemaining/pomoTotal:0));
+  document.getElementById('ring-fill').style.strokeDashoffset=offset.toFixed(3);
+}
+
+function startTitleFlash() {
+  let on=true; stopTitleFlash();
+  pomoFlashInterval=setInterval(()=>{document.title=on?'⏰ Time up!':pomoOriginalTitle;on=!on;},900);
+  setTimeout(stopTitleFlash,30000);
+}
+function stopTitleFlash() { if(pomoFlashInterval){clearInterval(pomoFlashInterval);pomoFlashInterval=null;} document.title=pomoOriginalTitle; }
+
+let audioCtx=null;
+function playBeep() {
+  try {
+    audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended')audioCtx.resume();
+    const beep=(freq,when,dur=0.25)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(0.0001,audioCtx.currentTime+when);g.gain.exponentialRampToValueAtTime(0.25,audioCtx.currentTime+when+0.02);g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+when+dur);o.connect(g);g.connect(audioCtx.destination);o.start(audioCtx.currentTime+when);o.stop(audioCtx.currentTime+when+dur+0.05);};
+    beep(880,0);beep(1100,0.3);beep(1320,0.6);
+  } catch(_){}
+}
+
+let notifTimeout;
+function notify(msg) {
+  const el=document.getElementById('notif'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(notifTimeout); notifTimeout=setTimeout(()=>el.classList.remove('show'),3500);
+}
+
+window.addEventListener('focus',()=>{ if(!pomoRunning&&document.getElementById('pomo-status').textContent==='done ✓')stopTitleFlash(); });
+</script>
+</body>
+</html>
